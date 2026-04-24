@@ -10,21 +10,31 @@ supabase = create_client(url, key)
 # Set halaman agar lebih lebar dan punya ikon tab
 st.set_page_config(page_title="Fun Ale Hub | 2026", page_icon="🎬", layout="wide")
 
-# --- CUSTOM STYLE (BIAR KEREN) ---
+# --- CUSTOM STYLE (ADAPTIF TEMA TERANG/GELAP) ---
 st.markdown("""
     <style>
-    .main {
-        background-color: #f5f7f9;
-    }
+    /* Mengatur radius tombol agar lebih modern */
     .stButton>button {
         border-radius: 20px;
         font-weight: bold;
     }
-    .stMetric {
-        background-color: #ffffff;
+    
+    /* Perbaikan Kotak Metrik agar Transparan & Adaptif */
+    [data-testid="stMetric"] {
+        background-color: rgba(128, 128, 128, 0.1); /* Abu-abu sangat transparan */
         padding: 15px;
         border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border: 1px solid rgba(128, 128, 128, 0.2); /* Garis tipis pembatas */
+    }
+
+    /* Memastikan teks metrik tetap terbaca */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+    }
+    
+    /* Styling Container untuk Review Video */
+    .stElementContainer {
+        border-radius: 15px;
     }
     </style>
     """, unsafe_allow_html=True)
