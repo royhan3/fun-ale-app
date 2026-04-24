@@ -134,16 +134,17 @@ elif menu == "👑 Panel Review Bos":
                     supabase.table("content_plans").update({"status": "Done", "notes": ""}).eq("concept", row['concept']).execute()
                     st.rerun()
                 
-                # --- LOGIKA REVISI: Balikkan ke Plan & Simpan Catatan ---
+                # --- LOGIKA REVISI DENGAN SAFETY CHECK ---
                 if c2.button("✍️ REVISI", key=f"r_{i}", use_container_width=True):
                     if catatan:
-                        supabase.table("content_plans").update({"status": "Plan", "notes": catatan}).eq("concept", row['concept']).execute()
-                        st.warning("Konten dikembalikan ke Editor dengan catatan.")
-                        st.rerun()
+                        try:
+                            supabase.table("content_plans").update({
+                                "status": "Plan", 
+                                "notes": catatan
+                            }).eq("concept", row['concept']).execute()
+                            st.warning(f"Revisi dikirim: {catatan}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error("Gagal mengirim revisi. Pastikan kolom 'notes' sudah ada di database Supabase!")
                     else:
                         st.error("Wajib isi catatan revisi!")
-                
-                if c3.button("🗑️ HAPUS", key=f"d_{i}", use_container_width=True):
-                    supabase.storage.from_("production-videos").remove([f"{row['concept'].replace(' ', '_')}.mp4"])
-                    supabase.table("content_plans").update({"status": "Plan", "notes": ""}).eq("concept", row['concept']).execute()
-                    st.rerun()
