@@ -26,7 +26,7 @@ with st.sidebar:
     st.title("Fun Ale Center")
     menu = st.radio("Navigasi Utama", ["📊 Dashboard Utama", "➕ Tambah Rencana", "📤 Portal Editor", "👑 Panel Review Bos"])
     st.divider()
-    st.caption("Production App v2.6 | 2026")
+    st.caption("Production App v2.7 | 2026")
 
 # Ambil data terbaru
 res = supabase.table("content_plans").select("*").execute()
@@ -48,9 +48,10 @@ if menu == "📊 Dashboard Utama":
         df_p = df[df['status'] == 'Plan']
         if not df_p.empty:
             for i, row in df_p.iterrows():
-                # Baris khusus untuk setiap judul konten agar bisa dihapus
                 c_text, c_del = st.columns([4, 1])
-                c_text.write(f"🔹 {row['concept']}")
+                # Menampilkan info singkat di daftar
+                info = f"{row['platform']} | W{row['target_week']}"
+                c_text.write(f"🔹 **{row['concept']}** ({info})")
                 if c_del.button("🗑️", key=f"del_plan_{i}"):
                     supabase.table("content_plans").delete().eq("concept", row['concept']).execute()
                     st.rerun()
@@ -59,25 +60,25 @@ if menu == "📊 Dashboard Utama":
 
     with col2:
         st.markdown("### ⏳ **WAITING REVIEW**")
-        st.dataframe(df[df['status'] == 'Review'][['concept']], use_container_width=True, hide_index=True)
+        st.dataframe(df[df['status'] == 'Review'][['concept', 'platform']], use_container_width=True, hide_index=True)
 
     with col3:
         st.markdown("### ✅ **COMPLETED**")
-        st.dataframe(df[df['status'] == 'Done'][['concept']], use_container_width=True, hide_index=True)
+        st.dataframe(df[df['status'] == 'Done'][['concept', 'platform']], use_container_width=True, hide_index=True)
 
-# --- HALAMAN BARU: TAMBAH RENCANA ---
+# --- HALAMAN 2: TAMBAH RENCANA ---
 elif menu == "➕ Tambah Rencana":
     st.title("➕ Tambah Ide Konten Baru")
     with st.container(border=True):
-        new_concept = st.text_input("Judul / Konsep Konten:", placeholder="Contoh: Ale main bola sama Asha")
+        new_concept = st.text_input("Judul / Konsep Konten:", placeholder="Misal: Ale Eksperimen Sains")
         
-        # Tambahkan 3 kolom untuk detail tambahan
-        col_a, col_b, col_c = st.columns(3)
-        with col_a:
+        c_a, c_b, c_c = st.columns(3)
+        with c_a:
             category = st.selectbox("Kategori:", ["FunArt", "FunGame", "FunSains", "FunDay"])
-        with col_b:
-            platform = st.selectbox("Platform:", ["Long", "Shorts"])
-        with col_c:
+        with c_b:
+            # Platform diubah menjadi Long & Short
+            platform = st.selectbox("Format Video:", ["Long", "Short"])
+        with c_c:
             target_week = st.number_input("Target Minggu Ke-:", min_value=1, max_value=52, value=1)
         
         if st.button("🚀 Simpan ke To-Do List", use_container_width=True):
@@ -91,12 +92,12 @@ elif menu == "➕ Tambah Rencana":
                         "status": "Plan"
                     }
                     supabase.table("content_plans").insert(data).execute()
-                    st.success(f"Berhasil! '{new_concept}' masuk rencana minggu ke-{target_week}")
-                    st.balloons()
+                    st.success(f"Berhasil ditambah ke daftar {platform}!")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Gagal simpan: {e}. Cek apakah kolom 'platform' sudah ada di Supabase kamu.")
+                    st.error(f"Gagal simpan: {e}")
             else:
-                st.warning("Judul konten jangan dikosongkan ya!")
+                st.warning("Judul jangan kosong!")
 
 # --- HALAMAN 3: EDITOR ---
 elif menu == "📤 Portal Editor":
@@ -107,10 +108,12 @@ elif menu == "📤 Portal Editor":
         video_file = st.file_uploader("Upload MP4:", type=["mp4", "mov"])
         if st.button("🚀 Kirim ke Bos"):
             if video_file:
-                path = f"{pilihan.replace(' ', '_')}.mp4"
-                supabase.storage.from_("production-videos").upload(path, video_file.getvalue(), {"upsert":"true"})
-                supabase.table("content_plans").update({"status": "Review"}).eq("concept", pilihan).execute()
-                st.rerun()
+                with st.spinner("Mengirim..."):
+                    path = f"{pilihan.replace(' ', '_')}.mp4"
+                    supabase.storage.from_("production-videos").upload(path, video_file.getvalue(), {"upsert":"true"})
+                    supabase.table("content_plans").update({"status": "Review"}).eq("concept", pilihan).execute()
+                    st.success("Terkirim!")
+                    st.rerun()
 
 # --- HALAMAN 4: BOS ---
 elif menu == "👑 Panel Review Bos":
@@ -119,14 +122,20 @@ elif menu == "👑 Panel Review Bos":
     if not df_r.empty:
         for i, row in df_r.iterrows():
             with st.container(border=True):
-                st.subheader(f"🎬 {row['concept']}")
+                st.subheader(f"🎬 {row['concept']} ({row['platform']})")
                 url_v = f"{url}/storage/v1/object/public/production-videos/{row['concept'].replace(' ', '_')}.mp4"
-                st.video(url_v)
+                
+                v_c1, v_c2, v_c3 = st.columns([1, 2, 1])
+                with v_c2:
+                    st.video(url_v)
+                
                 c1, c2, c3 = st.columns(3)
-                if c1.button("✅ APPROVE", key=f"a_{i}"):
+                if c1.button("✅ APPROVE", key=f"a_{i}", use_container_width=True):
                     supabase.table("content_plans").update({"status": "Done"}).eq("concept", row['concept']).execute()
                     st.rerun()
-                if c2.button("🗑️ HAPUS VIDEO", key=f"d_{i}"):
+                if c2.button("🗑️ HAPUS VIDEO", key=f"d_{i}", use_container_width=True):
                     supabase.storage.from_("production-videos").remove([f"{row['concept'].replace(' ', '_')}.mp4"])
                     supabase.table("content_plans").update({"status": "Plan"}).eq("concept", row['concept']).execute()
                     st.rerun()
+    else:
+        st.info("Belum ada video baru.")
