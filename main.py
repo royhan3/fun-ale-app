@@ -76,7 +76,7 @@ elif menu == "➕ Tambah Rencana":
         with col_a:
             category = st.selectbox("Kategori:", ["FunArt", "FunGame", "FunSains", "FunDay"])
         with col_b:
-            platform = st.selectbox("Platform:", ["YouTube", "TikTok", "Shorts"])
+            platform = st.selectbox("Platform:", ["Long", "Shorts"])
         with col_c:
             target_week = st.number_input("Target Minggu Ke-:", min_value=1, max_value=52, value=1)
         
