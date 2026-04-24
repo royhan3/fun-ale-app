@@ -7,112 +7,139 @@ url = "https://jalezfpxljzsnrveatks.supabase.co"
 key = "sb_publishable_Z8yQXpD6yPTGI11Z0hkN6A_c0cxqR_1"
 supabase = create_client(url, key)
 
-st.set_page_config(page_title="Fun Ale Production", layout="wide")
+# Set halaman agar lebih lebar dan punya ikon tab
+st.set_page_config(page_title="Fun Ale Hub | 2026", page_icon="🎬", layout="wide")
 
-# --- SIDEBAR NAVIGASI ---
-st.sidebar.title("🎬 Fun Ale Menu")
-menu = st.sidebar.radio("Pilih Halaman:", ["📋 Daftar & Progres", "📤 Editor: Upload Video", "👑 Bos: Review & Revisi"])
+# --- CUSTOM STYLE (BIAR KEREN) ---
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f5f7f9;
+    }
+    .stButton>button {
+        border-radius: 20px;
+        font-weight: bold;
+    }
+    .stMetric {
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Ambil data terbaru dari database
+# --- SIDEBAR ---
+with st.sidebar:
+    st.image("https://img.icons8.com/clouds/200/video-playlist.png") # Ikon pemanis
+    st.title("Fun Ale Center")
+    menu = st.radio("Navigasi Utama", ["📊 Dashboard Utama", "📤 Portal Editor", "👑 Panel Review Bos"])
+    st.divider()
+    st.caption("Production App v2.0 | 2026")
+
+# Ambil data terbaru
 res = supabase.table("content_plans").select("*").execute()
 df = pd.DataFrame(res.data)
 
-# --- HALAMAN 1: DAFTAR & PROGRES ---
-if menu == "📋 Daftar & Progres":
-    st.header("📊 Monitoring Produksi Fun Ale 2026")
+# --- HALAMAN 1: DASHBOARD ---
+if menu == "📊 Dashboard Utama":
+    st.title("📊 Monitoring Produksi Fun Ale")
     
-    # Membuat 3 kolom untuk 3 status berbeda
+    # Bagian Metrik (Ringkasan Angka)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total Rencana", len(df[df['status'] == 'Plan']), delta="Konten")
+    m2.metric("Sedang Review", len(df[df['status'] == 'Review']), delta="Waiting", delta_color="inverse")
+    m3.metric("Selesai Produksi", len(df[df['status'] == 'Done']), delta="Final", delta_color="normal")
+    
+    st.divider()
+    
+    # 3 Kolom Tabel
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.subheader("🛠 Belum Digarap")
-        st.info("Status: Plan")
-        df_plan = df[df['status'] == 'Plan']
-        if not df_plan.empty:
-            st.table(df_plan[['concept']])
+        st.markdown("### 🛠️ **TO-DO LIST**")
+        df_p = df[df['status'] == 'Plan'][['concept']]
+        if not df_p.empty:
+            st.dataframe(df_p, use_container_width=True, hide_index=True)
         else:
-            st.write("Kosong")
+            st.write("Semua beres! ✅")
 
     with col2:
-        st.subheader("⏳ Menunggu Review")
-        st.warning("Status: Review")
-        df_review = df[df['status'] == 'Review']
-        if not df_review.empty:
-            st.table(df_review[['concept']])
+        st.markdown("### ⏳ **WAITING REVIEW**")
+        df_r = df[df['status'] == 'Review'][['concept']]
+        if not df_r.empty:
+            st.dataframe(df_r, use_container_width=True, hide_index=True)
         else:
-            st.write("Belum ada kiriman editor")
+            st.write("Belum ada video masuk ☕")
 
     with col3:
-        st.subheader("✅ Sudah Selesai")
-        st.success("Status: Done")
-        df_done = df[df['status'] == 'Done']
-        if not df_done.empty:
-            st.table(df_done[['concept']])
+        st.markdown("### ✅ **COMPLETED**")
+        df_d = df[df['status'] == 'Done'][['concept']]
+        if not df_d.empty:
+            st.dataframe(df_d, use_container_width=True, hide_index=True)
         else:
-            st.write("Belum ada yang selesai")
+            st.write("Ayo semangat! 💪")
 
-# --- HALAMAN 2: EDITOR (UPLOAD) ---
-elif menu == "📤 Editor: Upload Video":
-    st.header("📤 Kirim Video ke Bos")
-    # Hanya tampilkan judul yang statusnya 'Plan'
+# --- HALAMAN 2: EDITOR ---
+elif menu == "📤 Portal Editor":
+    st.title("📤 Portal Upload Editor")
+    st.info("Silakan pilih konten yang sudah selesai diedit dan kirim ke Bos.")
+    
     df_upload = df[df['status'] == 'Plan']
-    
     if not df_upload.empty:
-        list_konten = df_upload['concept'].tolist()
-        pilihan = st.selectbox("Pilih konten yang mau diupload:", list_konten)
-        video_file = st.file_uploader("Pilih file video (MP4)", type=["mp4", "mov"])
-        
-        if st.button("Kirim Sekarang"):
-            if video_file:
-                with st.spinner("Proses upload..."):
-                    try:
-                        clean_name = f"{pilihan.replace(' ', '_')}.mp4"
-                        supabase.storage.from_("production-videos").upload(
-                            path=clean_name, 
-                            file=video_file.getvalue(), 
-                            file_options={"content-type": "video/mp4", "upsert": "true"}
-                        )
-                        # Update status ke 'Review'
-                        supabase.table("content_plans").update({"status": "Review"}).eq("concept", pilihan).execute()
-                        st.success(f"Berhasil! '{pilihan}' sekarang masuk ke tabel Menunggu Review.")
-                        st.balloons()
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        with st.container(border=True):
+            pilihan = st.selectbox("Judul Konten:", df_upload['concept'].tolist())
+            video_file = st.file_uploader("Upload MP4 (Max 200MB):", type=["mp4", "mov"])
+            
+            if st.button("🚀 Kirim Hasil Edit", use_container_width=True):
+                if video_file:
+                    with st.spinner("Mengompres dan mengirim video..."):
+                        try:
+                            clean_name = f"{pilihan.replace(' ', '_')}.mp4"
+                            supabase.storage.from_("production-videos").upload(
+                                path=clean_name, file=video_file.getvalue(), 
+                                file_options={"content-type": "video/mp4", "upsert": "true"}
+                            )
+                            supabase.table("content_plans").update({"status": "Review"}).eq("concept", pilihan).execute()
+                            st.success(f"Berhasil! '{pilihan}' sudah mendarat di meja Bos.")
+                            st.balloons()
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                else:
+                    st.warning("Pilih file dulu dong!")
     else:
-        st.info("Semua konten sudah digarap atau sedang direview.")
+        st.success("Semua rencana konten sudah diproses!")
 
-# --- HALAMAN 3: BOS (REVIEW) ---
-elif menu == "👑 Bos: Review & Revisi":
-    st.header("👑 Persetujuan Bos")
-    df_review_page = df[df['status'] == 'Review']
+# --- HALAMAN 3: BOS ---
+elif menu == "👑 Panel Review Bos":
+    st.title("👑 Ruang Review Bos")
+    df_rev = df[df['status'] == 'Review']
     
-    if not df_review_page.empty:
-        for i, row in df_review_page.iterrows():
-            with st.expander(f"🎬 Review: {row['concept']}", expanded=True):
-                # Tampilan video dikecilkan (proporsional)
+    if not df_rev.empty:
+        for i, row in df_rev.iterrows():
+            with st.container(border=True):
+                st.subheader(f"🎬 Konten: {row['concept']}")
+                
                 v_col1, v_col2, v_col3 = st.columns([1, 2, 1])
                 with v_col2:
-                    nama_file_storage = f"{row['concept'].replace(' ', '_')}.mp4"
-                    url_video = f"{url}/storage/v1/object/public/production-videos/{nama_file_storage}"
-                    st.video(url_video)
+                    url_v = f"{url}/storage/v1/object/public/production-videos/{row['concept'].replace(' ', '_')}.mp4"
+                    st.video(url_v)
                 
-                st.divider()
-                catatan = st.text_area("Catatan Revisi:", key=f"rev_text_{i}")
+                catatan = st.text_input("Pesan untuk Editor:", key=f"t_{i}")
                 
                 c1, c2, c3 = st.columns(3)
-                if c1.button("✅ APPROVE", key=f"btn_app_{i}", use_container_width=True):
-                    # Jika di-approve, status jadi 'Done'
+                if c1.button("✅ TERIMA", key=f"a_{i}", use_container_width=True):
                     supabase.table("content_plans").update({"status": "Done"}).eq("concept", row['concept']).execute()
-                    st.success("Konten dipindahkan ke tabel 'Sudah Selesai'!")
                     st.rerun()
                 
-                if c2.button("❌ REVISI", key=f"btn_rev_{i}", use_container_width=True):
-                    st.warning(f"Catatan terkirim: {catatan}")
+                if c2.button("✍️ REVISI", key=f"r_{i}", use_container_width=True):
+                    st.warning(f"Revisi dikirim: {catatan}")
                 
-                if c3.button("🗑️ HAPUS", key=f"btn_del_{i}", use_container_width=True):
-                    supabase.storage.from_("production-videos").remove([nama_file_storage])
+                if c3.button("🗑️ TOLAK/HAPUS", key=f"d_{i}", use_container_width=True):
+                    supabase.storage.from_("production-videos").remove([f"{row['concept'].replace(' ', '_')}.mp4"])
                     supabase.table("content_plans").update({"status": "Plan"}).eq("concept", row['concept']).execute()
                     st.rerun()
     else:
-        st.info("Belum ada video yang perlu direview.")
+        st.balloons()
+        st.info("Santai, Bos! Belum ada video baru yang perlu dicek.")
