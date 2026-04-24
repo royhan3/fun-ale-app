@@ -115,27 +115,59 @@ elif menu == "📤 Portal Editor":
                     st.success("Terkirim!")
                     st.rerun()
 
-# --- HALAMAN 4: BOS ---
+# --- HALAMAN 4: PANEL REVIEW BOS ---
 elif menu == "👑 Panel Review Bos":
     st.title("👑 Ruang Review Bos")
     df_r = df[df['status'] == 'Review']
+    
     if not df_r.empty:
         for i, row in df_r.iterrows():
             with st.container(border=True):
-                st.subheader(f"🎬 {row['concept']} ({row['platform']})")
-                url_v = f"{url}/storage/v1/object/public/production-videos/{row['concept'].replace(' ', '_')}.mp4"
+                # Menampilkan judul konten dan formatnya
+                st.subheader(f"🎬 {row['concept']} ({row.get('platform', 'N/A')})")
                 
+                # Pengaturan tampilan video agar proporsional
+                url_v = f"{url}/storage/v1/object/public/production-videos/{row['concept'].replace(' ', '_')}.mp4"
                 v_c1, v_c2, v_c3 = st.columns([1, 2, 1])
                 with v_c2:
                     st.video(url_v)
                 
+                st.divider()
+                
+                # --- KOLOM TEKS REVISI (SUDAH KEMBALI) ---
+                catatan_revisi = st.text_area(
+                    "Catatan untuk Editor:", 
+                    key=f"revisi_msg_{i}", 
+                    placeholder="Contoh: Tolong tambahkan subtitle di menit 0:30..."
+                )
+                
+                # Tombol Aksi
                 c1, c2, c3 = st.columns(3)
+                
+                # Tombol Approve
                 if c1.button("✅ APPROVE", key=f"a_{i}", use_container_width=True):
                     supabase.table("content_plans").update({"status": "Done"}).eq("concept", row['concept']).execute()
+                    st.success(f"Konten '{row['concept']}' telah disetujui!")
                     st.rerun()
-                if c2.button("🗑️ HAPUS VIDEO", key=f"d_{i}", use_container_width=True):
-                    supabase.storage.from_("production-videos").remove([f"{row['concept'].replace(' ', '_')}.mp4"])
-                    supabase.table("content_plans").update({"status": "Plan"}).eq("concept", row['concept']).execute()
-                    st.rerun()
+                
+                # Tombol Revisi (SUDAH KEMBALI)
+                if c2.button("✍️ REVISI", key=f"r_{i}", use_container_width=True):
+                    if catatan_revisi:
+                        # Di sini kamu bisa menambah logika untuk mengirim notifikasi jika perlu
+                        st.warning(f"Revisi terkirim untuk {row['concept']}: {catatan_revisi}")
+                    else:
+                        st.error("Isi dulu catatan revisinya sebelum klik tombol Revisi!")
+                
+                # Tombol Hapus Video
+                if c3.button("🗑️ HAPUS VIDEO", key=f"d_{i}", use_container_width=True):
+                    try:
+                        # Hapus file fisik di storage
+                        supabase.storage.from_("production-videos").remove([f"{row['concept'].replace(' ', '_')}.mp4"])
+                        # Kembalikan status ke Plan agar bisa di-upload ulang
+                        supabase.table("content_plans").update({"status": "Plan"}).eq("concept", row['concept']).execute()
+                        st.info("Video dihapus. Konten kembali ke daftar To-Do.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Gagal menghapus: {e}")
     else:
-        st.info("Belum ada video baru.")
+        st.info("Belum ada video baru yang perlu direview. Kerja bagus tim!")
