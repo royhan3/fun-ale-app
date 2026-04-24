@@ -65,16 +65,38 @@ if menu == "📊 Dashboard Utama":
         st.markdown("### ✅ **COMPLETED**")
         st.dataframe(df[df['status'] == 'Done'][['concept']], use_container_width=True, hide_index=True)
 
-# --- HALAMAN 2: TAMBAH RENCANA ---
+# --- HALAMAN BARU: TAMBAH RENCANA ---
 elif menu == "➕ Tambah Rencana":
     st.title("➕ Tambah Ide Konten Baru")
     with st.container(border=True):
-        new_concept = st.text_input("Judul / Konsep Konten:")
-        if st.button("Simpan ke To-Do List", use_container_width=True):
+        new_concept = st.text_input("Judul / Konsep Konten:", placeholder="Contoh: Ale main bola sama Asha")
+        
+        # Tambahkan 3 kolom untuk detail tambahan
+        col_a, col_b, col_c = st.columns(3)
+        with col_a:
+            category = st.selectbox("Kategori:", ["FunArt", "FunGame", "FunSains", "FunDay"])
+        with col_b:
+            platform = st.selectbox("Platform:", ["YouTube", "TikTok", "Shorts"])
+        with col_c:
+            target_week = st.number_input("Target Minggu Ke-:", min_value=1, max_value=52, value=1)
+        
+        if st.button("🚀 Simpan ke To-Do List", use_container_width=True):
             if new_concept:
-                supabase.table("content_plans").insert({"concept": new_concept, "status": "Plan"}).execute()
-                st.success("Berhasil ditambah!")
-                st.rerun()
+                try:
+                    data = {
+                        "concept": new_concept,
+                        "category": category,
+                        "platform": platform,
+                        "target_week": target_week,
+                        "status": "Plan"
+                    }
+                    supabase.table("content_plans").insert(data).execute()
+                    st.success(f"Berhasil! '{new_concept}' masuk rencana minggu ke-{target_week}")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Gagal simpan: {e}. Cek apakah kolom 'platform' sudah ada di Supabase kamu.")
+            else:
+                st.warning("Judul konten jangan dikosongkan ya!")
 
 # --- HALAMAN 3: EDITOR ---
 elif menu == "📤 Portal Editor":
