@@ -22,10 +22,10 @@ if menu == "📋 Daftar & Progres":
     st.header("Status Produksi Fun Ale 2026")
     c1, c2 = st.columns(2)
     with c1:
-        st.subheader("🛠 Belum Digarap")
+        st.subheader("🛠 Belum Digarap (Plan)")
         st.table(df[df['status'] == 'Plan'][['concept']])
     with c2:
-        st.subheader("✅ Sudah Selesai")
+        st.subheader("✅ Sudah Selesai (Done)")
         st.table(df[df['status'] == 'Done'][['concept']])
 
 # --- HALAMAN 2: EDITOR (UPLOAD) ---
@@ -48,6 +48,7 @@ elif menu == "📤 Editor: Upload Video":
                     supabase.table("content_plans").update({"status": "Review"}).eq("concept", pilihan).execute()
                     st.success("Berhasil terkirim!")
                     st.balloons()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"Gagal: {e}")
 
@@ -58,7 +59,6 @@ elif menu == "👑 Bos: Review & Revisi":
     
     if not df_review.empty:
         for i, row in df_review.iterrows():
-            # Menggunakan ID atau Index unik agar tidak Duplicate Key Error
             with st.expander(f"Review: {row['concept']}", expanded=True):
                 nama_file_storage = f"{row['concept'].replace(' ', '_')}.mp4"
                 url_video = f"{url}/storage/v1/object/public/production-videos/{nama_file_storage}"
@@ -66,13 +66,24 @@ elif menu == "👑 Bos: Review & Revisi":
                 
                 catatan = st.text_area("Catatan Revisi:", key=f"revisi_{i}")
                 
-                col_btn1, col_btn2 = st.columns(2)
-                if col_btn1.button("✅ APPROVE", key=f"approve_btn_{i}"):
+                c1, c2, c3 = st.columns(3)
+                if c1.button("✅ APPROVE", key=f"app_{i}"):
                     supabase.table("content_plans").update({"status": "Done"}).eq("concept", row['concept']).execute()
-                    st.success("Konten Selesai!")
                     st.rerun()
                 
-                if col_btn2.button("❌ REVISI", key=f"revisi_btn_{i}"):
+                if c2.button("❌ REVISI", key=f"rev_{i}"):
                     st.warning(f"Revisi dikirim: {catatan}")
+                
+                # --- TOMBOL HAPUS (FITUR BARU) ---
+                if c3.button("🗑️ HAPUS VIDEO", key=f"del_{i}"):
+                    try:
+                        # 1. Hapus dari Storage
+                        supabase.storage.from_("production-videos").remove([nama_file_storage])
+                        # 2. Kembalikan status ke 'Plan' di Database
+                        supabase.table("content_plans").update({"status": "Plan"}).eq("concept", row['concept']).execute()
+                        st.success("Video dihapus & status dikembalikan ke Plan.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Gagal hapus: {e}")
     else:
-        st.info("Belum ada video baru.")
+        st.info("Belum ada video baru untuk di-review.")
